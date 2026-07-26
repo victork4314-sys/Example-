@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1600" viewBox="0 0 1200 1600">
+  <rect width="1200" height="1600" fill="#fffdf8"/>
+  <g fill="#171512" font-family="Georgia, serif">
+    <text x="600" y="115" text-anchor="middle" font-size="54">North Window</text>
+    <text x="600" y="158" text-anchor="middle" font-size="23" font-style="italic">for violin and piano</text>
+    <text x="1040" y="205" text-anchor="end" font-size="21">Elian Hart</text>
+    <text x="86" y="265" font-size="19" font-style="italic">Quietly, with space</text>
+  </g>
+  <g stroke="#171512" stroke-width="2" fill="none">
+    <line x1="85" y1="315" x2="1115" y2="315"/><line x1="85" y1="337" x2="1115" y2="337"/><line x1="85" y1="359" x2="1115" y2="359"/><line x1="85" y1="381" x2="1115" y2="381"/><line x1="85" y1="403" x2="1115" y2="403"/>
+    <line x1="85" y1="485" x2="1115" y2="485"/><line x1="85" y1="507" x2="1115" y2="507"/><line x1="85" y1="529" x2="1115" y2="529"/><line x1="85" y1="551" x2="1115" y2="551"/><line x1="85" y1="573" x2="1115" y2="573"/>
+    <line x1="85" y1="630" x2="1115" y2="630"/><line x1="85" y1="652" x2="1115" y2="652"/><line x1="85" y1="674" x2="1115" y2="674"/><line x1="85" y1="696" x2="1115" y2="696"/><line x1="85" y1="718" x2="1115" y2="718"/>
+    <path d="M85 485 Q55 529 85 573 M85 630 Q55 674 85 718" stroke-width="4"/>
+    <line x1="340" y1="315" x2="340" y2="403"/><line x1="700" y1="315" x2="700" y2="403"/><line x1="1115" y1="315" x2="1115" y2="403"/>
+    <line x1="340" y1="485" x2="340" y2="718"/><line x1="700" y1="485" x2="700" y2="718"/><line x1="1115" y1="485" x2="1115" y2="718"/>
+  </g>
+  <g fill="#171512" font-family="serif">
+    <text x="101" y="390" font-size="84">𝄞</text><text x="101" y="559" font-size="84">𝄞</text><text x="101" y="704" font-size="84">𝄢</text>
+    <text x="180" y="374" font-size="34">4</text><text x="180" y="401" font-size="34">4</text>
+    <text x="180" y="544" font-size="34">4</text><text x="180" y="571" font-size="34">4</text>
+    <text x="180" y="689" font-size="34">4</text><text x="180" y="716" font-size="34">4</text>
+    <text x="215" y="365" font-size="43">♩</text><text x="275" y="345" font-size="43">♩</text><text x="390" y="380" font-size="43">♩</text><text x="465" y="355" font-size="43">♩</text><text x="560" y="335" font-size="43">♩</text><text x="755" y="365" font-size="43">♩</text><text x="845" y="345" font-size="43">♩</text>
+    <text x="215" y="540" font-size="43">♩</text><text x="275" y="518" font-size="43">♩</text><text x="390" y="552" font-size="43">♩</text><text x="465" y="530" font-size="43">♩</text><text x="560" y="510" font-size="43">♩</text><text x="755" y="542" font-size="43">♩</text><text x="845" y="520" font-size="43">♩</text>
+    <text x="215" y="690" font-size="43">♩</text><text x="275" y="670" font-size="43">♩</text><text x="390" y="702" font-size="43">♩</text><text x="465" y="680" font-size="43">♩</text><text x="560" y="660" font-size="43">♩</text><text x="755" y="692" font-size="43">♩</text><text x="845" y="670" font-size="43">♩</text>
+  </g>
+  <g fill="#171512" font-family="Georgia, serif">
+    <text x="85" y="820" font-size="18" font-style="italic">The phrases should feel as though they are being remembered rather than played.</text>
+    <text x="600" y="1490" text-anchor="middle" font-size="16">example score · page 1</text>
+  </g>
+</svg>
