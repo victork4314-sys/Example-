@@ -1,6 +1,6 @@
 User-agent: *
 Disallow: /library.html
-Disallow: /pieces/
+Disallow: /music/
 
 User-agent: GPTBot
 Disallow: /
