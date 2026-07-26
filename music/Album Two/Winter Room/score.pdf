@@ -1,0 +1,55 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>
+endobj
+4 0 obj
+<< /Length 763 >>
+stream
+BT /F1 18 Tf 72 770 Td (Winter Room) Tj ET
+BT /F1 10 Tf 72 750 Td (Solo violin) Tj ET
+72 620 m 523 620 l S
+72 629 m 523 629 l S
+72 638 m 523 638 l S
+72 647 m 523 647 l S
+72 656 m 523 656 l S
+110 645 8 4 re f 118 647 m 118 670 l S
+175 620 8 4 re f 183 622 m 183 645 l S
+240 630 8 4 re f 248 632 m 248 655 l S
+305 640 8 4 re f 313 642 m 313 665 l S
+370 650 8 4 re f 378 652 m 378 675 l S
+435 625 8 4 re f 443 627 m 443 650 l S
+72 480 m 523 480 l S
+72 489 m 523 489 l S
+72 498 m 523 498 l S
+72 507 m 523 507 l S
+72 516 m 523 516 l S
+110 505 8 4 re f 118 507 m 118 530 l S
+175 480 8 4 re f 183 482 m 183 505 l S
+240 490 8 4 re f 248 492 m 248 515 l S
+305 500 8 4 re f 313 502 m 313 525 l S
+370 510 8 4 re f 378 512 m 378 535 l S
+435 485 8 4 re f 443 487 m 443 510 l S
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000241 00000 n 
+0000001055 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+1125
+%%EOF
