@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Scores & audio — Elian Hart</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="name" href="index.html">Elian Hart</a>
+    <nav aria-label="Main navigation">
+      <a href="index.html">About</a>
+      <a class="active" href="library.html">Scores & audio</a>
+    </nav>
+  </header>
+
+  <main class="library-page">
+    <aside class="archive-panel">
+      <div class="archive-heading">
+        <p class="eyebrow">Repository archive</p>
+        <h1>Music</h1>
+        <p>Choose a score or recording.</p>
+      </div>
+      <div id="tree" class="tree" aria-live="polite">Loading the archive…</div>
+    </aside>
+
+    <section id="viewer" class="viewer" aria-live="polite">
+      <div class="empty-state">
+        <p class="scribble">←</p>
+        <h2>Pick something from the shelf.</h2>
+        <p>Scores open here. Recordings get their own player.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>Everything in this archive comes straight from the repository.</footer>
+  <script src="library.js"></script>
+</body>
+</html>
