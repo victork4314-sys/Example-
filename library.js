@@ -7,49 +7,117 @@ document.head.insertAdjacentHTML('beforeend', '<link rel="stylesheet" href="acce
 
 const treeEl = document.querySelector('#tree');
 const viewer = document.querySelector('#viewer');
-
-const pieces = {
-  'north-window': { title: 'North Window', detail: 'Violin and piano · 2026', code: 'WINDOW26', price: '$12' },
-  'three-quiet-machines': { title: 'Three Quiet Machines', detail: 'Solo piano · 2025', code: 'QUIET26', price: '$10' },
-  'after-the-rain-line': { title: 'After the Rain Line', detail: 'String quartet · 2024', code: 'RAINLINE', price: '$18' },
-  'harbour-static': { title: 'Harbour Static', detail: 'Electronics · 2026', code: 'HARBOUR', price: '$8' },
-  'paper-birds': { title: 'Paper Birds', detail: 'Flute and cello · 2025', code: 'BIRDS25', price: '$12' },
-  'winter-room': { title: 'Winter Room', detail: 'Solo violin · 2024', code: 'WINTER24', price: '$9' },
-  'small-hours': { title: 'Small Hours', detail: 'Clarinet trio · 2026', code: 'HOURS26', price: '$14' },
-  'stone-and-salt': { title: 'Stone and Salt', detail: 'Mixed ensemble · 2025', code: 'SALTSTONE', price: '$16' },
-  'the-last-lamp': { title: 'The Last Lamp', detail: 'Voice and piano · 2024', code: 'LAMP24', price: '$11' },
-  'field-notes': { title: 'Field Notes', detail: 'Percussion and tape · 2026', code: 'FIELD26', price: '$13' }
-};
-
-let files = {};
 let activeObjectUrl = null;
 
-const unlocked = id => sessionStorage.getItem(`piece:${id}`) === 'open';
+const audioTypes = new Set(['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac', 'opus']);
+const videoTypes = new Set(['mp4', 'webm', 'mov', 'm4v']);
+const imageTypes = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg']);
+const textTypes = new Set(['txt', 'md', 'json', 'csv', 'xml', 'musicxml', 'mxl', 'ly', 'abc']);
 
 function revokeActiveUrl() {
-  if (activeObjectUrl) {
-    URL.revokeObjectURL(activeObjectUrl);
-    activeObjectUrl = null;
-  }
+  if (activeObjectUrl) URL.revokeObjectURL(activeObjectUrl);
+  activeObjectUrl = null;
 }
 
-function showGate(id) {
+function extension(path) {
+  const name = path.split('/').pop() || '';
+  return name.includes('.') ? name.split('.').pop().toLowerCase() : '';
+}
+
+function displayName(value) {
+  return decodeURIComponent(value).replace(/[-_]+/g, ' ');
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
+function rawUrl(path) {
+  return RAW + path.split('/').map(encodeURIComponent).join('/');
+}
+
+function folderKey(path) {
+  return `folder:${path}`;
+}
+
+function demoCode(path) {
+  const folder = path.split('/').filter(Boolean).pop() || 'music';
+  const cleaned = folder.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
+  return `${cleaned || 'MUSIC'}26`;
+}
+
+function isUnlocked(path) {
+  return sessionStorage.getItem(folderKey(path)) === 'open';
+}
+
+function buildTree(paths) {
+  const root = { name: 'music', path: 'music', folders: new Map(), files: [] };
+
+  for (const fullPath of paths) {
+    const parts = fullPath.split('/').filter(Boolean);
+    if (parts.shift() !== 'music') continue;
+
+    let node = root;
+    const walked = ['music'];
+
+    parts.forEach((part, index) => {
+      const last = index === parts.length - 1;
+      if (last) {
+        node.files.push({ name: part, path: fullPath });
+        return;
+      }
+
+      walked.push(part);
+      if (!node.folders.has(part)) {
+        node.folders.set(part, {
+          name: part,
+          path: walked.join('/'),
+          folders: new Map(),
+          files: []
+        });
+      }
+      node = node.folders.get(part);
+    });
+  }
+
+  return root;
+}
+
+function fileIcon(path) {
+  const ext = extension(path);
+  if (ext === 'pdf') return '▧';
+  if (audioTypes.has(ext)) return '♪';
+  if (videoTypes.has(ext)) return '▶';
+  if (imageTypes.has(ext)) return '▣';
+  if (textTypes.has(ext)) return '≡';
+  return '·';
+}
+
+function folderContainsFiles(node) {
+  return node.files.length > 0;
+}
+
+function showUnlock(node, afterUnlock) {
   revokeActiveUrl();
-  const p = pieces[id];
+  const code = demoCode(node.path);
   viewer.innerHTML = `
     <div class="gate">
-      <p class="eyebrow">Locked piece</p>
-      <h2>${p.title}</h2>
-      <p>${p.detail}</p>
-      <p class="price">${p.price}</p>
+      <p class="eyebrow">Locked folder</p>
+      <h2>${escapeHtml(displayName(node.name))}</h2>
+      <p>${node.files.length} file${node.files.length === 1 ? '' : 's'} in this folder.</p>
       <button class="buy" type="button">Buy access</button>
       <div class="or"><span>or use a code</span></div>
       <form id="code-form">
-        <input id="code" autocomplete="off" inputmode="text" placeholder="Access code" aria-label="Access code">
+        <input id="code" autocomplete="off" placeholder="Access code" aria-label="Access code">
         <button type="submit">Unlock</button>
       </form>
       <p id="code-error" class="code-error" role="alert"></p>
-      <p class="demo-note">Demo code: <strong>${p.code}</strong></p>
+      <p class="demo-note">Demo code: <strong>${escapeHtml(code)}</strong></p>
     </div>`;
 
   viewer.querySelector('.buy').onclick = () => {
@@ -59,128 +127,141 @@ function showGate(id) {
   viewer.querySelector('form').onsubmit = event => {
     event.preventDefault();
     const entered = viewer.querySelector('#code').value.trim().toUpperCase();
-    if (entered === p.code) {
-      sessionStorage.setItem(`piece:${id}`, 'open');
-      renderTree();
-      showPiece(id);
+    if (entered === code) {
+      sessionStorage.setItem(folderKey(node.path), 'open');
+      renderArchive();
+      afterUnlock?.();
     } else {
-      viewer.querySelector('#code-error').textContent = 'That code does not match this piece.';
+      viewer.querySelector('#code-error').textContent = 'That code does not match this folder.';
     }
   };
 }
 
-async function fetchProtectedBlob(path, expectedType) {
-  const response = await fetch(RAW + path, {
+async function fetchBlob(path) {
+  const response = await fetch(rawUrl(path), {
     cache: 'no-store',
     credentials: 'omit',
     referrerPolicy: 'no-referrer'
   });
-
   if (!response.ok) throw new Error(`File returned ${response.status}`);
-  const sourceBlob = await response.blob();
-  return new Blob([await sourceBlob.arrayBuffer()], { type: expectedType });
+  return response.blob();
 }
 
-async function openScore(id) {
-  revokeActiveUrl();
-  const p = pieces[id];
-  const content = viewer.querySelector('#piece-content');
-  content.innerHTML = '<div class="empty-state"><p>Opening score…</p></div>';
-
-  try {
-    const blob = await fetchProtectedBlob(files[id].score, 'image/svg+xml');
-    activeObjectUrl = URL.createObjectURL(blob);
-    content.innerHTML = `
-      <div class="score-preview-wrap">
-        <img class="score-preview" src="${activeObjectUrl}" alt="Score preview for ${p.title}" draggable="false">
-      </div>`;
-  } catch (error) {
-    content.innerHTML = `<p class="error">The score preview could not open. ${error.message}.</p>`;
-  }
-}
-
-async function openAudio(id) {
-  revokeActiveUrl();
-  const content = viewer.querySelector('#piece-content');
-  content.innerHTML = '<div class="empty-state"><p>Opening recording…</p></div>';
-
-  try {
-    const blob = await fetchProtectedBlob(files[id].audio, 'audio/wav');
-    activeObjectUrl = URL.createObjectURL(blob);
-    content.innerHTML = `
-      <div class="audio-view">
-        <div class="record" aria-hidden="true">♪</div>
-        <audio controls controlsList="nodownload noplaybackrate" preload="metadata" src="${activeObjectUrl}"></audio>
-      </div>`;
-  } catch (error) {
-    content.innerHTML = `<p class="error">The recording could not open. ${error.message}.</p>`;
-  }
-}
-
-function showPiece(id) {
-  if (!unlocked(id)) {
-    showGate(id);
+async function openFile(file, parentNode) {
+  if (folderContainsFiles(parentNode) && !isUnlocked(parentNode.path)) {
+    showUnlock(parentNode, () => openFile(file, parentNode));
     return;
   }
 
   revokeActiveUrl();
-  const p = pieces[id];
+  const ext = extension(file.path);
+  const title = displayName(file.name);
   viewer.innerHTML = `
     <div class="viewer-head">
-      <h2>${p.title}</h2>
-      <button class="lock-again" type="button">lock again</button>
+      <h2>${escapeHtml(title)}</h2>
+      <button class="lock-again" type="button">close</button>
     </div>
-    <div class="piece-tabs">
-      <button data-kind="score" class="selected">Score</button>
-      <button data-kind="audio">Audio</button>
-    </div>
-    <div id="piece-content"></div>`;
+    <div id="piece-content"><div class="empty-state"><p>Opening file…</p></div></div>`;
 
-  const tabs = [...viewer.querySelectorAll('.piece-tabs button')];
-  const open = kind => {
-    tabs.forEach(button => button.classList.toggle('selected', button.dataset.kind === kind));
-    if (kind === 'score') openScore(id);
-    else openAudio(id);
-  };
-
-  tabs.forEach(button => button.onclick = () => open(button.dataset.kind));
   viewer.querySelector('.lock-again').onclick = () => {
-    sessionStorage.removeItem(`piece:${id}`);
     revokeActiveUrl();
-    renderTree();
-    showGate(id);
+    viewer.innerHTML = '<div class="empty-state"><p class="scribble">←</p><h2>Pick something from the shelf.</h2><p>Everything under the music folder appears automatically.</p></div>';
   };
 
-  open('score');
+  const content = viewer.querySelector('#piece-content');
+
+  try {
+    const blob = await fetchBlob(file.path);
+    activeObjectUrl = URL.createObjectURL(blob);
+
+    if (ext === 'pdf') {
+      content.innerHTML = `
+        <div class="pdf-preview-wrap">
+          <object class="pdf-preview" data="${activeObjectUrl}#toolbar=0&navpanes=0" type="application/pdf">
+            <iframe class="pdf-preview" src="${activeObjectUrl}#toolbar=0&navpanes=0" title="${escapeHtml(title)}"></iframe>
+            <p class="error">This browser cannot show the PDF inline. <a href="${activeObjectUrl}" target="_blank" rel="noreferrer">Open the PDF</a>.</p>
+          </object>
+        </div>`;
+      return;
+    }
+
+    if (audioTypes.has(ext)) {
+      content.innerHTML = `<div class="audio-view"><div class="record" aria-hidden="true">♪</div><audio controls controlsList="nodownload noplaybackrate" preload="metadata" src="${activeObjectUrl}"></audio></div>`;
+      return;
+    }
+
+    if (videoTypes.has(ext)) {
+      content.innerHTML = `<div class="media-preview"><video controls controlsList="nodownload" src="${activeObjectUrl}"></video></div>`;
+      return;
+    }
+
+    if (imageTypes.has(ext)) {
+      content.innerHTML = `<div class="score-preview-wrap"><img class="score-preview" src="${activeObjectUrl}" alt="${escapeHtml(title)}" draggable="false"></div>`;
+      return;
+    }
+
+    if (textTypes.has(ext) || blob.type.startsWith('text/')) {
+      const text = await blob.text();
+      content.innerHTML = `<pre class="text-preview">${escapeHtml(text)}</pre>`;
+      return;
+    }
+
+    content.innerHTML = `<div class="empty-state"><h2>${escapeHtml(title)}</h2><p>This file type has no inline browser preview.</p><a href="${activeObjectUrl}" target="_blank" rel="noreferrer">Open file</a></div>`;
+  } catch (error) {
+    content.innerHTML = `<p class="error">This file could not open. ${escapeHtml(error.message)}.</p>`;
+  }
 }
 
-function renderTree() {
-  treeEl.innerHTML = '';
-  Object.keys(pieces).forEach(id => {
-    if (!files[id]?.score || !files[id]?.audio) return;
-    const p = pieces[id];
-    const group = document.createElement('div');
-    group.className = 'piece-folder';
-    group.innerHTML = `
-      <button class="folder-button" type="button">
-        <span>${unlocked(id) ? '⌄' : '▸'}</span>
-        <span><strong>${p.title}</strong><small>${p.detail}</small></span>
-        <span class="folder-lock">${unlocked(id) ? 'open' : 'locked'}</span>
-      </button>
-      <div class="folder-files ${unlocked(id) ? '' : 'hidden'}">
-        <button data-kind="score" type="button">▧ score</button>
-        <button data-kind="audio" type="button">♪ audio</button>
-      </div>`;
+let archiveRoot = null;
 
-    group.querySelector('.folder-button').onclick = () => showPiece(id);
-    group.querySelectorAll('.folder-files button').forEach(button => {
-      button.onclick = () => {
-        showPiece(id);
-        setTimeout(() => viewer.querySelector(`[data-kind="${button.dataset.kind}"]`)?.click(), 0);
-      };
+function renderFolder(node, container, depth = 0) {
+  const wrapper = document.createElement('div');
+  wrapper.className = `archive-node depth-${Math.min(depth, 6)}`;
+
+  if (node !== archiveRoot) {
+    const folderButton = document.createElement('button');
+    folderButton.type = 'button';
+    folderButton.className = 'archive-folder-button';
+    folderButton.innerHTML = `<span class="folder-arrow">⌄</span><span class="folder-name">${escapeHtml(displayName(node.name))}</span>${folderContainsFiles(node) ? `<span class="folder-lock">${isUnlocked(node.path) ? 'open' : 'locked'}</span>` : ''}`;
+    wrapper.appendChild(folderButton);
+
+    const children = document.createElement('div');
+    children.className = 'archive-children';
+    wrapper.appendChild(children);
+
+    folderButton.onclick = () => {
+      const collapsed = children.classList.toggle('collapsed');
+      folderButton.querySelector('.folder-arrow').textContent = collapsed ? '›' : '⌄';
+      if (!collapsed && folderContainsFiles(node) && !isUnlocked(node.path)) showUnlock(node);
+    };
+
+    container.appendChild(wrapper);
+    container = children;
+  }
+
+  [...node.folders.values()]
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
+    .forEach(folder => renderFolder(folder, container, depth + 1));
+
+  node.files
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
+    .forEach(file => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'archive-file-button';
+      button.innerHTML = `<span class="file-mark">${fileIcon(file.path)}</span><span>${escapeHtml(displayName(file.name))}</span>`;
+      button.onclick = () => openFile(file, node);
+      container.appendChild(button);
     });
-    treeEl.appendChild(group);
-  });
+}
+
+function renderArchive() {
+  treeEl.innerHTML = '';
+  if (!archiveRoot || (!archiveRoot.folders.size && !archiveRoot.files.length)) {
+    treeEl.innerHTML = '<p class="error">The music folder is empty.</p>';
+    return;
+  }
+  renderFolder(archiveRoot, treeEl);
 }
 
 async function load() {
@@ -188,25 +269,21 @@ async function load() {
     const response = await fetch(API, { cache: 'no-store', referrerPolicy: 'no-referrer' });
     if (!response.ok) throw new Error(`GitHub returned ${response.status}`);
     const data = await response.json();
+    const paths = data.tree
+      .filter(item => item.type === 'blob' && item.path.startsWith('music/'))
+      .map(item => item.path)
+      .filter(path => !path.split('/').pop().startsWith('.'));
 
-    data.tree
-      .filter(item => item.type === 'blob' && item.path.startsWith('pieces/'))
-      .forEach(item => {
-        const [, id, name] = item.path.split('/');
-        if (!pieces[id] || (name !== 'score.svg' && name !== 'audio.wav')) return;
-        files[id] ??= {};
-        files[id][name === 'score.svg' ? 'score' : 'audio'] = item.path;
-      });
-
-    renderTree();
+    archiveRoot = buildTree(paths);
+    renderArchive();
   } catch (error) {
-    treeEl.innerHTML = `<p class="error">The archive could not be read. ${error.message}.</p>`;
+    treeEl.innerHTML = `<p class="error">The archive could not be read. ${escapeHtml(error.message)}.</p>`;
   }
 }
 
 window.addEventListener('pagehide', revokeActiveUrl);
 document.addEventListener('contextmenu', event => {
-  if (event.target.closest('.score-preview-wrap, .audio-view')) event.preventDefault();
+  if (event.target.closest('.pdf-preview-wrap, .score-preview-wrap, .audio-view, .media-preview')) event.preventDefault();
 });
 
 load();
