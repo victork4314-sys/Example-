@@ -5,27 +5,56 @@ A deliberately small, handmade composer website with two pages:
 - `index.html` — example composer information
 - `library.html` — a repository-backed music tree with score and audio previews
 
-## Music folder structure
+## Only one folder rule
 
-The library supports folders inside folders. The example archive is organized like this:
+Put everything you want displayed somewhere inside the top-level `music/` folder.
+
+That is the only required rule.
+
+The website does **not** require particular album names, piece names, filenames, folder depth, or a fixed number of folders. It reads the repository recursively and automatically builds the visible tree from whatever currently exists under `music/`.
+
+All of these are valid:
 
 ```text
 music/
-├── Album One/
-│   └── Piece Name/
-│       ├── score.pdf
-│       └── audio.wav
-└── Album Two/
-    └── Piece Name/
-        ├── score.pdf
-        └── audio.wav
+├── score.pdf
+├── My Album/
+│   ├── piece-one.pdf
+│   └── recording.mp3
+├── Another Album/
+│   └── Chamber Music/
+│       └── Piece Name/
+│           ├── full score.pdf
+│           ├── rehearsal audio.wav
+│           ├── notes.txt
+│           └── cover.jpg
+└── Any Number Of Other Folders/
+    └── nested as deeply as needed/
+        └── anything.ext
 ```
 
-Each piece folder is treated as one purchasable/unlockable item. Its score and recording stay together inside that folder. New nested albums and piece folders appear automatically in the site tree when they follow the same structure.
+Folders and files appear automatically after they are committed to the repository. Hidden files whose names begin with `.` are ignored.
 
-## Access codes and payments
+## Preview behavior
 
-The included unlock screen is a working front-end demonstration. It remembers an unlock only for the current browser session. The **Buy access** button is a placeholder for a real checkout link.
+The site accepts every file under `music/` and always lists it in the tree.
+
+It provides built-in previews when the browser supports the format:
+
+- PDF files open in the score/document viewer.
+- Common audio formats open in the audio player.
+- Common video formats open in the video player.
+- Images open in the image viewer.
+- Text and notation-source files open as readable text.
+- Other file types remain visible and receive an **Open file** option.
+
+A filename does not need to be `score.pdf` or `audio.wav`. File handling is based on the actual extension, not a required name.
+
+## Automatic folder access codes
+
+Any folder that directly contains files receives an automatic demo access gate. Its demonstration code is made from the folder name followed by `26`. This avoids maintaining a separate hard-coded list whenever folders are added or renamed.
+
+The included unlock screen is still only a front-end demonstration. The **Buy access** button is a placeholder for a real protected checkout.
 
 ## Important protection limitation
 
