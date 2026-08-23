@@ -13,120 +13,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Resolve exact Scarx28 source and probe schematic routes
+      - name: Resolve Scarx28 download
         shell: bash
         run: |
-          set +e
           mkdir -p schematic-probe
-          UA='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
-          DIRECT='https://www.planetminecraft.com/project/regional-airport-project-1-1/download/'
-
-          # Correct PMC resolver endpoint. Do not follow initially so we can capture a third-party Location.
-          curl -sS -A "$UA" --max-time 120 -D schematic-probe/direct-download.headers -o schematic-probe/direct-download.body "$DIRECT"
-          printf 'DIRECT_BODY_BYTES=%s\n' "$(wc -c < schematic-probe/direct-download.body 2>/dev/null || echo 0)" > schematic-probe/direct-status.txt
-          file schematic-probe/direct-download.body >> schematic-probe/direct-status.txt 2>/dev/null || true
-          LOC=$(sed -n 's/^[Ll]ocation:[[:space:]]*//p' schematic-probe/direct-download.headers | tr -d '\r' | tail -1)
-          printf 'LOCATION=%s\n' "$LOC" >> schematic-probe/direct-status.txt
-
-          resolve_payload() {
-            local url="$1"
-            local out='schematic-probe/direct-resolved.bin'
-            if echo "$url" | grep -qi 'dropbox.com'; then
-              if echo "$url" | grep -q 'dl=0'; then url="${url/dl=0/dl=1}"; elif ! echo "$url" | grep -q 'dl=1'; then url="${url}&dl=1"; fi
-            fi
-            printf '%s\n' "$url" > schematic-probe/direct-resolved-url.txt
-            curl -L -sS -A "$UA" --max-time 240 -D schematic-probe/direct-resolved.headers -o "$out" "$url" || true
-
-            # MediaFire share pages need their CDN link extracted.
-            if file "$out" 2>/dev/null | grep -qiE 'HTML|text'; then
-              python3 - <<'PY'
-from pathlib import Path
-import re, html
-p=Path('schematic-probe/direct-resolved.bin')
-s=p.read_text('utf-8','ignore') if p.exists() else ''
-patterns=[
- r'href=["\']?(https?://download\d*\.mediafire\.com/[^"\'>\s&]+)',
- r'"download_url"\s*:\s*"(https?://[^"]+)"',
- r'id=["\']downloadButton["\'][^>]*href=["\']([^"\']+)["\']',
- r'href=["\']([^"\']+)["\'][^>]*id=["\']downloadButton["\']',
- r'(https?://download[a-z0-9]*\.mediafire\.com/[^\s"\'<>&]+)'
-]
-for pat in patterns:
-    m=re.search(pat,s,re.I)
-    if m:
-        u=html.unescape(m.group(1)).replace('\\u002F','/')
-        Path('schematic-probe/mediafire-direct-url.txt').write_text(u,encoding='utf-8')
-        break
-PY
-              if [ -s schematic-probe/mediafire-direct-url.txt ]; then
-                MF=$(cat schematic-probe/mediafire-direct-url.txt)
-                curl -L -sS -A "$UA" --max-time 300 -o schematic-probe/mediafire-payload.bin "$MF" || true
-              fi
-            fi
-          }
-
-          if [ -n "$LOC" ]; then
-            resolve_payload "$LOC"
-          fi
-
-          # Recognize any archive payload and preserve it with a clear name.
-          python3 - <<'PY'
-from pathlib import Path
-candidates=[
- Path('schematic-probe/direct-download.body'),
- Path('schematic-probe/direct-resolved.bin'),
- Path('schematic-probe/mediafire-payload.bin')
-]
-for p in candidates:
-    if not p.exists(): continue
-    b=p.read_bytes()
-    if b[:4] == b'PK\x03\x04':
-        out=Path('schematic-probe/Scarx28-Regional-Airport-Project.zip')
-        out.write_bytes(b)
-        Path('schematic-probe/FOUND.txt').write_text(f'ZIP source recovered from {p.name}\nBytes: {len(b)}\n',encoding='utf-8')
-        break
-PY
-
-          # Existing Jina/static diagnostics remain as fallback evidence.
-          BASE='https://r.jina.ai/'
-          endpoints=(
-            'https://www.planetminecraft.com/project/regional-airport-project-1-1/download/'
-            'https://www.planetminecraft.com/project/regional-airport-project-1-1/download/schematic/'
-            'https://www.planetminecraft.com/project/regional-airport-project-1-1/download/worldmap/'
-          )
-          candidates=(
-            'regional-airport-project.zip'
-            'regional-airport-project-1-1.zip'
-            'regional-airport.zip'
-            'regional-airport-1-1.zip'
-            'regional-airport-project.schem'
-            'regional-airport-project-1-1.schem'
-            'regional-airport.schem'
-            'regional-airport-project.schematic'
-            'regional-airport-project-1-1.schematic'
-            'regional-airport.schematic'
-          )
-          : > schematic-probe/status.txt
-          i=0
-          for e in "${endpoints[@]}"; do
-            i=$((i+1))
-            u="${BASE}${e}"
-            code=$(curl -L -sS --max-time 90 -o "schematic-probe/endpoint-$i.body" -D "schematic-probe/endpoint-$i.headers" -w '%{http_code}' "$u")
-            printf 'ENDPOINT %s %s %s\n' "$code" "$(wc -c < schematic-probe/endpoint-$i.body)" "$u" >> schematic-probe/status.txt
-          done
-          static_urls=(
-            'http://static.planetminecraft.com/files/resource_media/schematic/galactic-parkour.zip'
-            'http://static.planetminecraft.com/files/resource_media/schematic/this-file-definitely-does-not-exist-zzzzzz.zip'
-          )
-          for f in "${candidates[@]}"; do static_urls+=("http://static.planetminecraft.com/files/resource_media/schematic/$f"); done
-          j=0
-          for s in "${static_urls[@]}"; do
-            j=$((j+1))
-            code=$(curl -L -sS --max-time 90 -o "schematic-probe/static-$j.body" -D "schematic-probe/static-$j.headers" -w '%{http_code}' "${BASE}${s}")
-            printf 'STATIC %02d %s %s %s\n' "$j" "$code" "$(wc -c < schematic-probe/static-$j.body)" "$s" >> schematic-probe/status.txt
-          done
-          grep -RinE 'resource_media|static\.planetminecraft|\.zip|\.schem|\.schematic|mediafire|dropbox|drive\.google|download' schematic-probe/*.body > schematic-probe/HITS.txt || true
-      - name: Upload probe results
+          curl --silent --show-error --max-time 120 \
+            --user-agent 'Mozilla/5.0' \
+            --dump-header schematic-probe/headers.txt \
+            --output schematic-probe/body.bin \
+            'https://www.planetminecraft.com/project/regional-airport-project-1-1/download/' || true
+          grep -i '^location:' schematic-probe/headers.txt > schematic-probe/location.txt || true
+          file schematic-probe/body.bin > schematic-probe/filetype.txt || true
+          wc -c schematic-probe/body.bin > schematic-probe/size.txt || true
+          cat schematic-probe/headers.txt
+      - name: Upload result
         if: always()
         uses: actions/upload-artifact@v4
         with:
