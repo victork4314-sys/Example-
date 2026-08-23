@@ -10,7 +10,7 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y git-lfs >/dev/null
           git lfs install
-      - name: Pull PMC crawl and locate Scarx28 project
+      - name: Pull PMC crawl and grep Scarx28
         shell: bash
         run: |
           set -euxo pipefail
@@ -21,34 +21,10 @@ jobs:
           cd /tmp/pmc-crawl
           git lfs install --local
           git lfs pull --include='data/pipeline/pmc_data_cleansed.csv' --exclude=''
-          python3 - <<'PY'
-import csv, json, os
-from pathlib import Path
-src=Path('/tmp/pmc-crawl/data/pipeline/pmc_data_cleansed.csv')
-out=Path(os.environ['GITHUB_WORKSPACE'])/'viewer-out'
-rows=[]
-with src.open('r',encoding='utf-8',errors='replace',newline='') as f:
-    r=csv.DictReader(f)
-    headers=r.fieldnames or []
-    for row in r:
-        blob='\n'.join(str(v) for v in row.values()).lower()
-        if 'regional-airport-project-1-1' in blob or ('regional airport project' in blob and 'scarx28' in blob):
-            rows.append(row)
-            if len(rows)>=50: break
-(out/'headers.json').write_text(json.dumps(headers,indent=2),encoding='utf-8')
-(out/'matches.json').write_text(json.dumps(rows,indent=2,ensure_ascii=False),encoding='utf-8')
-with (out/'summary.txt').open('w',encoding='utf-8') as g:
-    g.write(f'dataset_size={src.stat().st_size}\n')
-    g.write(f'matches={len(rows)}\n')
-    g.write('headers='+repr(headers)+'\n')
-    for i,row in enumerate(rows,1):
-        g.write(f'\n--- MATCH {i} ---\n')
-        for k,v in row.items():
-            if v:
-                lk=k.lower()
-                if any(x in lk for x in ['url','link','download','mirror','title','author','member','slug','id']):
-                    g.write(f'{k}: {v}\n')
-PY
+          wc -c data/pipeline/pmc_data_cleansed.csv > "$GITHUB_WORKSPACE/viewer-out/size.txt"
+          head -n 1 data/pipeline/pmc_data_cleansed.csv > "$GITHUB_WORKSPACE/viewer-out/header.txt"
+          grep -i -m 50 -E 'regional-airport-project-1-1|Scarx28' data/pipeline/pmc_data_cleansed.csv > "$GITHUB_WORKSPACE/viewer-out/matches.txt" || true
+          wc -l "$GITHUB_WORKSPACE/viewer-out/matches.txt" > "$GITHUB_WORKSPACE/viewer-out/match-count.txt"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
