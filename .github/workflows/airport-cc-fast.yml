@@ -1,0 +1,25 @@
+name: Airport Fast Archive Recovery
+
+on:
+  pull_request:
+    paths:
+      - airport-cc-fast-trigger.txt
+
+permissions:
+  contents: read
+
+jobs:
+  recover-fast:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fast archived PMC recovery
+        run: python3 scripts/probe_airport_cc_fast.py
+      - name: Upload recovery results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: airport-cc-fast-results
+          path: cc-fast/
+          if-no-files-found: warn
+          retention-days: 1
