@@ -1,1 +1,2 @@
 Probe exact Scarx28 schematic payload.
+Run correct /download/ resolver revision.
