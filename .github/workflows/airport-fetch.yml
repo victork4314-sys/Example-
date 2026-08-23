@@ -9,15 +9,15 @@ permissions:
 
 jobs:
   fetch-source:
-    if: github.event.issue.title == 'RUN AIRPORT SOURCE FETCH' || github.event.issue.title == 'RUN AIRPORT STATIC PROBE'
+    if: github.event.issue.title == 'RUN AIRPORT SOURCE FETCH' || github.event.issue.title == 'RUN AIRPORT STATIC PROBE' || github.event.issue.title == 'RUN AIRPORT WAYBACK PROBE'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Run requested airport source job
         shell: bash
         run: |
-          if [ "${{ github.event.issue.title }}" = "RUN AIRPORT STATIC PROBE" ]; then
-            bash scripts/probe_airport_static.sh
-          else
-            bash scripts/airport_fetch.sh
-          fi
+          case "${{ github.event.issue.title }}" in
+            'RUN AIRPORT STATIC PROBE') bash scripts/probe_airport_static.sh ;;
+            'RUN AIRPORT WAYBACK PROBE') bash scripts/probe_airport_wayback.sh ;;
+            *) bash scripts/airport_fetch.sh ;;
+          esac
