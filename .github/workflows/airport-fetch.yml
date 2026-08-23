@@ -14,6 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Run requested airport source job
+        continue-on-error: true
         shell: bash
         run: |
           case "${{ github.event.issue.title }}" in
