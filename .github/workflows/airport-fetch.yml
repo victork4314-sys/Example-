@@ -9,9 +9,15 @@ permissions:
 
 jobs:
   fetch-source:
-    if: github.event.issue.title == 'RUN AIRPORT SOURCE FETCH'
+    if: github.event.issue.title == 'RUN AIRPORT SOURCE FETCH' || github.event.issue.title == 'RUN AIRPORT STATIC PROBE'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Fetch exact Scarx28 airport source
-        run: bash scripts/airport_fetch.sh
+      - name: Run requested airport source job
+        shell: bash
+        run: |
+          if [ "${{ github.event.issue.title }}" = "RUN AIRPORT STATIC PROBE" ]; then
+            bash scripts/probe_airport_static.sh
+          else
+            bash scripts/airport_fetch.sh
+          fi
