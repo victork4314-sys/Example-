@@ -5,28 +5,34 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install Git LFS
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y git-lfs >/dev/null
-          git lfs install
-      - name: Pull PMC crawl and grep Scarx28
+      - name: Download exact Scarx28 airport source
         shell: bash
         run: |
           set -euxo pipefail
-          rm -rf /tmp/pmc-crawl viewer-out
+          rm -rf viewer-out
           mkdir -p viewer-out
-          export GIT_LFS_SKIP_SMUDGE=1
-          git clone --depth 1 https://github.com/erzar0/MC.git /tmp/pmc-crawl
-          cd /tmp/pmc-crawl
-          git lfs install --local
-          git lfs pull --include='data/pipeline/pmc_data_cleansed.csv' --exclude=''
-          wc -c data/pipeline/pmc_data_cleansed.csv > "$GITHUB_WORKSPACE/viewer-out/size.txt"
-          head -n 1 data/pipeline/pmc_data_cleansed.csv > "$GITHUB_WORKSPACE/viewer-out/header.txt"
-          grep -i -m 50 -E 'regional-airport-project-1-1|Scarx28' data/pipeline/pmc_data_cleansed.csv > "$GITHUB_WORKSPACE/viewer-out/matches.txt" || true
-          wc -l "$GITHUB_WORKSPACE/viewer-out/matches.txt" > "$GITHUB_WORKSPACE/viewer-out/match-count.txt"
+          urls=(
+            'https://s3.amazonaws.com/static.planetminecraft.com/files/resource_media/schematic/regional-airport.zip?response-content-encoding=gzip&response-content-type=text/plain'
+            'https://s3.amazonaws.com/static.planetminecraft.com/files/resource_media/schematic/regional-airport.zip'
+            'https://static.planetminecraft.com/files/resource_media/schematic/regional-airport.zip'
+          )
+          ok=0
+          : > viewer-out/attempts.txt
+          for u in "${urls[@]}"; do
+            echo "$u" >> viewer-out/attempts.txt
+            curl -fL --retry 2 --connect-timeout 30 --max-time 180 -A 'Mozilla/5.0' "$u" -o viewer-out/candidate.bin || continue
+            file viewer-out/candidate.bin >> viewer-out/attempts.txt || true
+            wc -c viewer-out/candidate.bin >> viewer-out/attempts.txt || true
+            if unzip -t viewer-out/candidate.bin >/dev/null 2>&1; then
+              mv viewer-out/candidate.bin viewer-out/regional-airport.zip
+              unzip -l viewer-out/regional-airport.zip > viewer-out/zip-list.txt
+              sha256sum viewer-out/regional-airport.zip > viewer-out/sha256.txt
+              ok=1
+              break
+            fi
+          done
+          test "$ok" = 1
       - uses: actions/upload-artifact@v4
-        if: always()
         with:
           name: scarx28-viewer-trace
           path: viewer-out/
