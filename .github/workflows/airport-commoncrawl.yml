@@ -1,0 +1,25 @@
+name: Airport Common Crawl Recovery
+
+on:
+  pull_request:
+    paths:
+      - airport-commoncrawl-trigger.txt
+
+permissions:
+  contents: read
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Recover old PMC page from Common Crawl
+        run: python3 scripts/probe_airport_commoncrawl.py
+      - name: Upload recovery results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: airport-commoncrawl-results
+          path: cc-probe/
+          if-no-files-found: warn
+          retention-days: 1
