@@ -3,7 +3,7 @@ name: Scarx28 Dataset Mirror Lookup
 on:
   pull_request:
     paths:
-      - airport-schematic-probe-trigger.txt
+      - scarx28-dataset-trigger.txt
 
 permissions:
   contents: read
