@@ -1,0 +1,70 @@
+name: Airport Schematic Direct Probe
+
+on:
+  pull_request:
+    paths:
+      - airport-schematic-probe-trigger.txt
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Probe exact schematic and static payload routes
+        shell: bash
+        run: |
+          set +e
+          mkdir -p schematic-probe
+          BASE='https://r.jina.ai/'
+          endpoints=(
+            'https://www.planetminecraft.com/project/regional-airport-project-1-1/download/schematic/'
+            'http://www.planetminecraft.com/project/regional-airport-project-1-1/download/schematic/'
+            'https://www.planetminecraft.com/project/regional-airport-project-1-1/download/worldmap/'
+          )
+          candidates=(
+            'regional-airport-project.zip'
+            'regional-airport-project-1-1.zip'
+            'regional-airport.zip'
+            'regional-airport-1-1.zip'
+            'regional-airport-project.schem'
+            'regional-airport-project-1-1.schem'
+            'regional-airport.schem'
+            'regional-airport-project.schematic'
+            'regional-airport-project-1-1.schematic'
+            'regional-airport.schematic'
+          )
+          : > schematic-probe/status.txt
+          i=0
+          for e in "${endpoints[@]}"; do
+            i=$((i+1))
+            u="${BASE}${e}"
+            code=$(curl -L -sS --max-time 90 -o "schematic-probe/endpoint-$i.body" -D "schematic-probe/endpoint-$i.headers" -w '%{http_code}' "$u")
+            printf 'ENDPOINT %s %s %s\n' "$code" "$(wc -c < schematic-probe/endpoint-$i.body)" "$u" >> schematic-probe/status.txt
+          done
+          # Compare known-good static file, known-bad file, then candidate filenames through Jina.
+          static_urls=(
+            'http://static.planetminecraft.com/files/resource_media/schematic/galactic-parkour.zip'
+            'http://static.planetminecraft.com/files/resource_media/schematic/this-file-definitely-does-not-exist-zzzzzz.zip'
+          )
+          for f in "${candidates[@]}"; do
+            static_urls+=("http://static.planetminecraft.com/files/resource_media/schematic/$f")
+          done
+          j=0
+          for s in "${static_urls[@]}"; do
+            j=$((j+1))
+            code=$(curl -L -sS --max-time 90 -o "schematic-probe/static-$j.body" -D "schematic-probe/static-$j.headers" -w '%{http_code}' "${BASE}${s}")
+            printf 'STATIC %02d %s %s %s\n' "$j" "$code" "$(wc -c < schematic-probe/static-$j.body)" "$s" >> schematic-probe/status.txt
+            head -c 500 "schematic-probe/static-$j.body" | tr '\n' ' ' >> schematic-probe/status.txt
+            printf '\n' >> schematic-probe/status.txt
+          done
+          grep -RinE 'resource_media|static\.planetminecraft|\.zip|\.schem|\.schematic|download' schematic-probe/endpoint-*.body > schematic-probe/HITS.txt || true
+      - name: Upload probe results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: airport-schematic-probe-results
+          path: schematic-probe/
+          retention-days: 1
