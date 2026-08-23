@@ -1,0 +1,32 @@
+name: Airport Source Export
+
+on:
+  pull_request:
+    paths:
+      - airport-source-export-trigger.txt
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify Scarx28 source archive
+        shell: bash
+        run: |
+          set -euxo pipefail
+          test -f origin-probe/6.bin
+          file origin-probe/6.bin
+          unzip -t origin-probe/6.bin
+          mkdir -p airport-source-export
+          cp origin-probe/6.bin airport-source-export/Scarx28-Regional-Airport.zip
+          sha256sum airport-source-export/Scarx28-Regional-Airport.zip > airport-source-export/SHA256.txt
+          unzip -l airport-source-export/Scarx28-Regional-Airport.zip | head -80 > airport-source-export/CONTENTS.txt
+      - name: Upload exact source
+        uses: actions/upload-artifact@v4
+        with:
+          name: scarx28-regional-airport-source
+          path: airport-source-export/
+          retention-days: 1
