@@ -1,1 +1,2 @@
 Run the proven PR-triggered resolver against Scarx28's correct PMC /download/ endpoint.
+Synchronize trigger 2.
