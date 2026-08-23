@@ -1,1 +1,2 @@
 Run Scarx28 exact source resolver from latest main workflow revision.
+SYNC 2
