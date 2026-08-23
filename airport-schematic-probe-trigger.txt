@@ -1,1 +1,2 @@
 Trace Scarx28 Regional Airport 3D viewer payload from current main workflow.
+PR trigger 2026-08-23T16:36 Oslo
