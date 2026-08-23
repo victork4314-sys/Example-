@@ -13,19 +13,100 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Resolve Scarx28 download
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser
+        shell: bash
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null 2>&1
+      - name: Trace PMC 3D viewer payload
         shell: bash
         run: |
           mkdir -p schematic-probe
-          curl --silent --show-error --max-time 120 \
-            --user-agent 'Mozilla/5.0' \
-            --dump-header schematic-probe/headers.txt \
-            --output schematic-probe/body.bin \
-            'https://www.planetminecraft.com/project/regional-airport-project-1-1/download/' || true
-          grep -i '^location:' schematic-probe/headers.txt > schematic-probe/location.txt || true
-          file schematic-probe/body.bin > schematic-probe/filetype.txt || true
-          wc -c schematic-probe/body.bin > schematic-probe/size.txt || true
-          cat schematic-probe/headers.txt
+          cat > trace-viewer.js <<'JS'
+const { chromium } = require('playwright');
+const fs = require('fs');
+const path = require('path');
+
+(async () => {
+  const out = 'schematic-probe';
+  const url = 'https://www.planetminecraft.com/project/regional-airport-project-1-1/tab_schemagic';
+  const browser = await chromium.launch({headless:true});
+  const context = await browser.newContext({
+    userAgent:'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36',
+    viewport:{width:1440,height:1000},
+    acceptDownloads:true
+  });
+  const page = await context.newPage();
+  const lines=[];
+  const interesting=[];
+  const bodies=[];
+  const isInteresting = u => /schem|world|3d|view|ajax|resource_media|download|blob|api|pmc/i.test(u);
+
+  page.on('request', req => {
+    const u=req.url();
+    lines.push(`REQ\t${req.method()}\t${req.resourceType()}\t${u}`);
+    if(isInteresting(u)) interesting.push(`REQ\t${req.method()}\t${req.resourceType()}\t${u}`);
+  });
+  page.on('response', async res => {
+    const u=res.url();
+    const ct=(await res.allHeaders())['content-type'] || '';
+    lines.push(`RES\t${res.status()}\t${ct}\t${u}`);
+    if(isInteresting(u)) {
+      interesting.push(`RES\t${res.status()}\t${ct}\t${u}`);
+      try {
+        const b=await res.body();
+        if(b && b.length && b.length < 100*1024*1024) {
+          const idx=bodies.length;
+          const ext = ct.includes('json') ? '.json' : ct.includes('javascript') ? '.js' : ct.includes('text') || ct.includes('html') ? '.txt' : '.bin';
+          const fn=`captured-${String(idx).padStart(3,'0')}${ext}`;
+          fs.writeFileSync(path.join(out,fn),b);
+          bodies.push(`${fn}\t${b.length}\t${ct}\t${u}`);
+        }
+      } catch(e) {}
+    }
+  });
+  page.on('download', async d => {
+    const fn='browser-download-'+(await d.suggestedFilename());
+    await d.saveAs(path.join(out,fn));
+    interesting.push(`DOWNLOAD\t${fn}\t${d.url()}`);
+  });
+
+  try {
+    await page.goto(url,{waitUntil:'domcontentloaded',timeout:120000});
+    await page.waitForTimeout(20000);
+    fs.writeFileSync(path.join(out,'title.txt'),await page.title());
+    fs.writeFileSync(path.join(out,'final-url.txt'),page.url());
+    fs.writeFileSync(path.join(out,'page.html'),await page.content());
+    await page.screenshot({path:path.join(out,'page.png'),fullPage:true});
+
+    const links = await page.locator('a').evaluateAll(as => as.map(a => ({text:(a.textContent||'').trim(),href:a.href})).filter(x=>x.href));
+    fs.writeFileSync(path.join(out,'links.json'),JSON.stringify(links,null,2));
+    const scripts = await page.locator('script').evaluateAll(ss => ss.map(s => ({src:s.src,type:s.type,text:(s.textContent||'').slice(0,10000)})));
+    fs.writeFileSync(path.join(out,'scripts.json'),JSON.stringify(scripts,null,2));
+
+    // Force any visible 3D/viewer tab or lazy-loading element if present.
+    for(const sel of ['a[href*="tab_schemagic"]','[data-tab*="schemagic"]','text=3D VIEW','text=3D View']) {
+      try {
+        const el=page.locator(sel).first();
+        if(await el.count()) { await el.click({timeout:5000}).catch(()=>{}); await page.waitForTimeout(15000); }
+      } catch(e) {}
+    }
+    await page.mouse.wheel(0,2000);
+    await page.waitForTimeout(10000);
+  } catch(e) {
+    fs.writeFileSync(path.join(out,'fatal.txt'),String(e&&e.stack||e));
+  }
+  fs.writeFileSync(path.join(out,'network-all.txt'),lines.join('\n'));
+  fs.writeFileSync(path.join(out,'network-interesting.txt'),interesting.join('\n'));
+  fs.writeFileSync(path.join(out,'captured-index.txt'),bodies.join('\n'));
+  await browser.close();
+})().catch(e=>{fs.mkdirSync('schematic-probe',{recursive:true});fs.writeFileSync('schematic-probe/top-fatal.txt',String(e&&e.stack||e));process.exitCode=0;});
+JS
+          node trace-viewer.js || true
       - name: Upload result
         if: always()
         uses: actions/upload-artifact@v4
