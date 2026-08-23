@@ -5,41 +5,50 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - run: npm install playwright@1.55.0
-      - run: npx playwright install --with-deps chromium
-      - name: Trace viewer
+      - name: Install Git LFS
         run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y git-lfs >/dev/null
+          git lfs install
+      - name: Pull PMC crawl and locate Scarx28 project
+        shell: bash
+        run: |
+          set -euxo pipefail
+          rm -rf /tmp/pmc-crawl viewer-out
           mkdir -p viewer-out
-          cat > trace.js <<'EOF'
-          const { chromium } = require('playwright');
-          const fs = require('fs');
-          (async()=>{
-            const browser=await chromium.launch({headless:true});
-            const ctx=await browser.newContext({userAgent:'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140 Safari/537.36'});
-            const page=await ctx.newPage();
-            const log=[];
-            page.on('request',r=>log.push('REQ\t'+r.resourceType()+'\t'+r.url()));
-            page.on('response',async r=>{
-              const h=await r.allHeaders();
-              log.push('RES\t'+r.status()+'\t'+(h['content-type']||'')+'\t'+r.url());
-            });
-            try{
-              await page.goto('https://www.planetminecraft.com/project/regional-airport-project-1-1/tab_schemagic',{waitUntil:'domcontentloaded',timeout:120000});
-              await page.waitForTimeout(30000);
-              fs.writeFileSync('viewer-out/title.txt',await page.title());
-              fs.writeFileSync('viewer-out/url.txt',page.url());
-              fs.writeFileSync('viewer-out/page.html',await page.content());
-              await page.screenshot({path:'viewer-out/page.png',fullPage:true});
-            }catch(e){fs.writeFileSync('viewer-out/error.txt',String(e&&e.stack||e));}
-            fs.writeFileSync('viewer-out/network.txt',log.join('\n'));
-            await browser.close();
-          })().catch(e=>fs.writeFileSync('viewer-out/fatal.txt',String(e&&e.stack||e)));
-          EOF
-          node trace.js
-          grep -Ei 'schem|world|3d|view|ajax|resource_media|download|api|blob' viewer-out/network.txt > viewer-out/interesting.txt || true
+          export GIT_LFS_SKIP_SMUDGE=1
+          git clone --depth 1 https://github.com/erzar0/MC.git /tmp/pmc-crawl
+          cd /tmp/pmc-crawl
+          git lfs install --local
+          git lfs pull --include='data/pipeline/pmc_data_cleansed.csv' --exclude=''
+          python3 - <<'PY'
+import csv, json, os
+from pathlib import Path
+src=Path('/tmp/pmc-crawl/data/pipeline/pmc_data_cleansed.csv')
+out=Path(os.environ['GITHUB_WORKSPACE'])/'viewer-out'
+rows=[]
+with src.open('r',encoding='utf-8',errors='replace',newline='') as f:
+    r=csv.DictReader(f)
+    headers=r.fieldnames or []
+    for row in r:
+        blob='\n'.join(str(v) for v in row.values()).lower()
+        if 'regional-airport-project-1-1' in blob or ('regional airport project' in blob and 'scarx28' in blob):
+            rows.append(row)
+            if len(rows)>=50: break
+(out/'headers.json').write_text(json.dumps(headers,indent=2),encoding='utf-8')
+(out/'matches.json').write_text(json.dumps(rows,indent=2,ensure_ascii=False),encoding='utf-8')
+with (out/'summary.txt').open('w',encoding='utf-8') as g:
+    g.write(f'dataset_size={src.stat().st_size}\n')
+    g.write(f'matches={len(rows)}\n')
+    g.write('headers='+repr(headers)+'\n')
+    for i,row in enumerate(rows,1):
+        g.write(f'\n--- MATCH {i} ---\n')
+        for k,v in row.items():
+            if v:
+                lk=k.lower()
+                if any(x in lk for x in ['url','link','download','mirror','title','author','member','slug','id']):
+                    g.write(f'{k}: {v}\n')
+PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
