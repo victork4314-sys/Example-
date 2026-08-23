@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import json, gzip, io, re, sys, urllib.request
+import json, gzip, io, re, sys, urllib.request, urllib.parse
 from pathlib import Path
 
 OUT=Path('cc-probe'); OUT.mkdir(exist_ok=True)
@@ -20,7 +20,7 @@ for idx in indexes:
     api=f'https://index.commoncrawl.org/{idx}-index?url={urllib.parse.quote(u,safe="")}&output=json'
     try:
       req=urllib.request.Request(api,headers=headers)
-      txt=urllib.request.urlopen(req,timeout=25).read().decode('utf-8','ignore')
+      txt=urllib.request.urlopen(req,timeout=20).read().decode('utf-8','ignore')
     except Exception as e:
       found.append({'index':idx,'url':u,'error':repr(e)}); continue
     for line in txt.splitlines():
@@ -36,17 +36,12 @@ for i,rec in enumerate(found):
   try:
     offset=int(rec['offset']); length=int(rec['length']); fn=rec['filename']
     req=urllib.request.Request('https://data.commoncrawl.org/'+fn,headers={'Range':f'bytes={offset}-{offset+length-1}','User-Agent':'Mozilla/5.0'})
-    raw=urllib.request.urlopen(req,timeout=40).read()
+    raw=urllib.request.urlopen(req,timeout=30).read()
     try: raw=gzip.GzipFile(fileobj=io.BytesIO(raw)).read()
     except: pass
     text=raw.decode('utf-8','ignore')
     (OUT/f'record-{i}.txt').write_text(text,encoding='utf-8')
-    # Search all likely direct download locations / filenames.
-    pats=[
-      r'https?://[^\s"\'<>]+',
-      r'//static\.planetminecraft\.com/[^\s"\'<>]+',
-      r'/files/resource_media/[^\s"\'<>]+'
-    ]
+    pats=[r'https?://[^\s"\'<>]+',r'//static\.planetminecraft\.com/[^\s"\'<>]+',r'/files/resource_media/[^\s"\'<>]+']
     urls2=set()
     for pat in pats:
       urls2.update(re.findall(pat,text,re.I))
@@ -54,7 +49,6 @@ for i,rec in enumerate(found):
       low=h.lower()
       if any(k in low for k in ['download','resource_media','mediafire','dropbox','drive.google','mega.nz','.zip','.schem','.schematic','.litematic']):
         hits.append({'record':i,'source':rec.get('url'),'hit':h[:2000]})
-    # also extract href around download button and resource fields
     for m in re.finditer(r'.{0,500}(?:Download Minecraft Map|worldmap|resource_media|wurl|schematic).{0,1500}',text,re.I|re.S):
       snippet=re.sub(r'\s+',' ',m.group(0))[:2200]
       hits.append({'record':i,'snippet':snippet})
