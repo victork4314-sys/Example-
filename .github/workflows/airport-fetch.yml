@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   fetch-source:
-    if: contains(fromJSON('["RUN AIRPORT SOURCE FETCH","RUN AIRPORT STATIC PROBE","RUN AIRPORT WAYBACK PROBE","RUN AIRPORT WAYBACK FAST","RUN AIRPORT COMMONCRAWL"]'), github.event.issue.title)
+    if: contains(fromJSON('["RUN AIRPORT SOURCE FETCH","RUN AIRPORT STATIC PROBE","RUN AIRPORT WAYBACK PROBE","RUN AIRPORT WAYBACK FAST","RUN AIRPORT COMMONCRAWL","RUN AIRPORT ORIGIN PROBE"]'), github.event.issue.title)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -22,6 +22,7 @@ jobs:
             'RUN AIRPORT WAYBACK PROBE') bash scripts/probe_airport_wayback.sh ;;
             'RUN AIRPORT WAYBACK FAST') bash scripts/probe_airport_wayback_fast.sh ;;
             'RUN AIRPORT COMMONCRAWL') python3 scripts/probe_airport_commoncrawl.py ;;
+            'RUN AIRPORT ORIGIN PROBE') bash scripts/airport_origin_probe.sh ;;
             *) bash scripts/airport_fetch.sh ;;
           esac
       - name: Commit recovery output
@@ -30,6 +31,6 @@ jobs:
         run: |
           git config user.name airport-fetch-bot
           git config user.email airport-fetch-bot@users.noreply.github.com
-          git add -f cc-probe wayback-fast wayback-probe static-probe airport-fetch-output 2>/dev/null || true
+          git add -f cc-probe wayback-fast wayback-probe static-probe airport-fetch-output origin-probe 2>/dev/null || true
           git commit -m 'Airport recovery probe output' || exit 0
           git push
