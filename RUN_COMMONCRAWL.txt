@@ -1,1 +1,0 @@
-Trigger note only. Actual workflow is issue-triggered.
